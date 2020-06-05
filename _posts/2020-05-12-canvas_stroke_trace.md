@@ -33,3 +33,7 @@ CanvasRenderingContext对应h5中canvas的Context对象，在js中可以通过`c
 要提高fps有两个思路，一是找出当前渲染流水线的瓶颈，然后针对笔记书写场景进行优化，该方案的难度相对高一些，但是可以实现对用户透明，而且从长远来看可以让我们对渲染有更加深刻的理解，从而有利于团队的成长；另一钟思路是重新实现一个Canvas或者CanvasRenderingContext，这样可以让我们直接控制它的渲染从而绕过部分甚至全部的blink渲染流水线，缺点是对用户不透明。
 
 经过思考，决定采用自定义CanvasRenderingContext的方式来绕过cc和viz,直接使用FrameBuffer来进行渲染。
+
+禁用 NextCommitWaitsForActivation 和 gpu raster 之后，主线程中的 `LayerTreeHostImpl` 使用 `ZeroCopyRasterBufferProvider` 而 Compositor 线程使用 `OneCopyRasterBufferProvider`，此时，自动绘制直线的帧率最高可以达到 44FPS(desync=false)/49FPS(desync=true)，性能比之前有所降低，之前是（50/46）。
+
+当强制都使用 `ZeroCopyRasterBufferProvider`时，网页无法正常打开。

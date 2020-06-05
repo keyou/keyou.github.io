@@ -16,3 +16,5 @@ yarn.lock
 # Ignore Yard Doc
 /doc
 .yardoc/
+
+.vscode/
