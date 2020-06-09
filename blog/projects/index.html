@@ -1,0 +1,12 @@
+---
+layout: page
+title: Projects
+header: Opensource Projects
+description: "This page shows a list of my projects."
+group: navigation
+---
+
+<ul class="post-list">
+    {% assign projects_list = site.data.projects %}
+    {% include helpers/projects_list %}
+</ul>

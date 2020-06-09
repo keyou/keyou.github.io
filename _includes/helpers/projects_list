@@ -1,0 +1,8 @@
+{% for node in projects_list %}
+    {% if node.name != null %}
+        <li><a class="internal" href="{{ node.url }}" target="_blank">{{node.name}}</a> | 
+        <span class="description">{{ node.description }}</span></li>
+    {% endif %}
+{% endfor %}
+
+{% assign projects_list = nil %}
