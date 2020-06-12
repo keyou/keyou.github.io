@@ -1,0 +1,27 @@
+---
+title: Chromium GL Context 初始化流程
+published: false
+tags:
+  - chromium
+  - gpu
+  - opengles
+---
+
+```c++
+libcontent.so!viz::ContextProvider::ContextProvider(viz::ContextProvider * this) (/media/keyou/dev2/chromium64/src/components/viz/common/gpu/context_provider.h:55)
+libcontent.so!viz::ContextProviderCommandBuffer::ContextProviderCommandBuffer(viz::ContextProviderCommandBuffer * this, scoped_refptr<gpu::GpuChannelHost> channel, content::GpuMemoryBufferManagerSingleton * gpu_memory_buffer_manager, int32_t stream_id, gpu::SchedulingPriority stream_priority, gpu::SurfaceHandle surface_handle, const GURL & active_url, bool automatic_flushes, bool support_locking, bool support_grcontext, const gpu::SharedMemoryLimits & memory_limits, const gpu::ContextCreationAttribs & attributes, viz::command_buffer_metrics::ContextType type) (/media/keyou/dev2/chromium64/src/services/viz/public/cpp/gpu/context_provider_command_buffer.cc:51)
+libcontent.so!base::MakeRefCounted<viz::ContextProviderCommandBuffer, scoped_refptr<gpu::GpuChannelHost>, gpu::GpuMemoryBufferManager*&, content::$_1, gpu::SchedulingPriority const&, unsigned long const&, GURL, bool const&, bool&, bool&, gpu::SharedMemoryLimits&, gpu::ContextCreationAttribs&, viz::command_buffer_metrics::ContextType&>(viz::command_buffer_metrics::ContextType & args, viz::command_buffer_metrics::ContextType & args, viz::command_buffer_metrics::ContextType & args, viz::command_buffer_metrics::ContextType & args, viz::command_buffer_metrics::ContextType & args, viz::command_buffer_metrics::ContextType & args, viz::command_buffer_metrics::ContextType & args, viz::command_buffer_metrics::ContextType & args, viz::command_buffer_metrics::ContextType & args, viz::command_buffer_metrics::ContextType & args, viz::command_buffer_metrics::ContextType & args, viz::command_buffer_metrics::ContextType & args) (/media/keyou/dev2/chromium64/src/base/memory/scoped_refptr.h:99)
+libcontent.so!content::(anonymous namespace)::CreateContextProvider(scoped_refptr<gpu::GpuChannelHost> gpu_channel_host, content::GpuMemoryBufferManagerSingleton * gpu_memory_buffer_manager, bool support_locking, bool support_gles2_interface, bool support_raster_interface, bool support_grcontext, bool support_oop_rasterization, viz::command_buffer_metrics::ContextType type) (/media/keyou/dev2/chromium64/src/content/browser/compositor/viz_process_transport_factory.cc:81)
+libcontent.so!content::VizProcessTransportFactory::TryCreateContextsForGpuCompositing(content::VizProcessTransportFactory * this, scoped_refptr<gpu::GpuChannelHost> gpu_channel_host) (/media/keyou/dev2/chromium64/src/content/browser/compositor/viz_process_transport_factory.cc:425)
+libcontent.so!content::VizProcessTransportFactory::OnEstablishedGpuChannel(content::VizProcessTransportFactory * this, base::WeakPtr<ui::Compositor> compositor_weak_ptr, scoped_refptr<gpu::GpuChannelHost> gpu_channel_host) (/media/keyou/dev2/chromium64/src/content/browser/compositor/viz_process_transport_factory.cc:371)
+libcontent.so!base::OnceCallback<void (scoped_refptr<gpu::GpuChannelHost>)>::Run(scoped_refptr<gpu::GpuChannelHost>) &&(base::OnceCallback<void (scoped_refptr<gpu::GpuChannelHost>)> * this, scoped_refptr<gpu::GpuChannelHost> args) (/media/keyou/dev2/chromium64/src/base/callback.h:98)
+libcontent.so!content::BrowserGpuChannelHostFactory::EstablishRequest::RunCallbacksOnMain(content::BrowserGpuChannelHostFactory::EstablishRequest * this) (/media/keyou/dev2/chromium64/src/content/browser/gpu/browser_gpu_channel_host_factory.cc:211)
+libcontent.so!content::BrowserGpuChannelHostFactory::EstablishRequest::FinishAndRunCallbacksOnMain(content::BrowserGpuChannelHostFactory::EstablishRequest * this) (/media/keyou/dev2/chromium64/src/content/browser/gpu/browser_gpu_channel_host_factory.cc:195)
++
+libcontent.so!content::BrowserGpuChannelHostFactory::EstablishRequest::FinishOnIO(content::BrowserGpuChannelHostFactory::EstablishRequest * this) (/media/keyou/dev2/chromium64/src/content/browser/gpu/browser_gpu_channel_host_factory.cc:185)
+libcontent.so!content::BrowserGpuChannelHostFactory::EstablishRequest::OnEstablishedOnIO(content::BrowserGpuChannelHostFactory::EstablishRequest * this, mojo::ScopedMessagePipeHandle channel_handle, const gpu::GPUInfo & gpu_info, const gpu::GpuFeatureInfo & gpu_feature_info, viz::GpuHostImpl::EstablishChannelStatus status) (/media/keyou/dev2/chromium64/src/content/browser/gpu/browser_gpu_channel_host_factory.cc:180)
+libhost.so!base::OnceCallback<void (mojo::ScopedHandleBase<mojo::MessagePipeHandle>, gpu::GPUInfo const&, gpu::GpuFeatureInfo const&, viz::GpuHostImpl::EstablishChannelStatus)>::Run(mojo::ScopedHandleBase<mojo::MessagePipeHandle>, gpu::GPUInfo const&, gpu::GpuFeatureInfo const&, viz::GpuHostImpl::EstablishChannelStatus) &&(base::OnceCallback<void (mojo::ScopedHandleBase<mojo::MessagePipeHandle>, const gpu::GPUInfo &, const gpu::GpuFeatureInfo &, viz::GpuHostImpl::EstablishChannelStatus)> * this, viz::GpuHostImpl::EstablishChannelStatus args, viz::GpuHostImpl::EstablishChannelStatus args, viz::GpuHostImpl::EstablishChannelStatus args, viz::GpuHostImpl::EstablishChannelStatus args) (/media/keyou/dev2/chromium64/src/base/callback.h:98)
+libhost.so!viz::GpuHostImpl::OnChannelEstablished(viz::GpuHostImpl * this, int client_id, mojo::ScopedMessagePipeHandle channel_handle) (/media/keyou/dev2/chromium64/src/components/viz/host/gpu_host_impl.cc:393)
+
+
+```

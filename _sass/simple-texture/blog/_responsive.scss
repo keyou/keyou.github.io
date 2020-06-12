@@ -77,8 +77,10 @@
 */
 @media only screen and (min-width: 1200px) {
     .unit-body {
-        margin-right: 12%;
-        margin-left: 12%;
+        // margin-right: 12%;
+        // margin-left: 12%;
+        max-width: 980px;
+        margin: auto;
     }
 
     .the-footer h4 a {
