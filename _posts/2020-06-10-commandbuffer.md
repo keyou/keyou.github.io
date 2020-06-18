@@ -182,6 +182,8 @@ client端可以创建多个 `viz::ContextProviderCommandBuffer`，每个都拥�
 
 需要注意的是，client端并不会每产生一条CommandBuffer命令都马上发送到service端，只有当client调用 `Flush` 命令的时候，CommandBuffer中的数据才会被“告知”servcie端。这里说“告知”是因为 CommandBuffer 存在于共享内存中，所以不存在将共享内存发送到service的情况，所谓的发送其实只是告诉service有新的数据了，然后service会从共享内存读取新的命令。通知service有新命令的IPC消息为 `GpuCommandBufferMsg_AsyncFlush`。
 
+另外，client 端大多数情况下都是通过 Skia 的 Ganesh 来使用 GL 的，很少直接调用 GL 命令。`viz::(Raster)ContextProvider::GrContext()` 接口负责初始化 Skia Ganesh 依赖的 `GrContext`。
+
 ### service 端
 
 当 service 端收到 client 建立 IPC(channel) 通道请求的时候，service 端会通过 `gpu::GpuChannelManager` 类建立一个 `gpu::GpuChannel` 对象，它维护了到client端的IPC通道。
