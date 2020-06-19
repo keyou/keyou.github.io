@@ -1,5 +1,5 @@
 ---
-title: Chromium 中的 GPU 同步
+title: Chromium GPU 资源共享及同步
 published: false
 tags:
   - chromium
@@ -7,6 +7,7 @@ tags:
   - opengl
 ---
 
+## 
 
 ## 关于 native GL Context 和 virtual GL Context
 
