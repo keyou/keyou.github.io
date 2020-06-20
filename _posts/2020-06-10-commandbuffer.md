@@ -100,6 +100,18 @@ struct ShaderSourceBucket {
 
 > 完整的 Command Buffer 序列化格式的定义见 [gpu/command_buffer/docs/gles2_cmd_format_docs.txt](https://chromium.googlesource.com/chromium/src/+/master/gpu/command_buffer/docs/gles2_cmd_format_docs.txt)。
 
+## Command Buffer 命令的自动生成
+
+Command Buffer 提供了三种 GL Context，分别时 GLES Context,Raster Context,WebGPU Context，它们用于不同的目的。GLES Context 用于常规的绘制，Raster Context 用于 Raster，WebGPU Context 用于 WebGPU。
+
+在 `gpu/command_buffer/gles2_cmd_buffer_functions.txt` 文件中定义了 GLES Context 使用到的 GL 命令，包括 150 多个 OpenGLES2.0 命令，以及由 19 个扩展提供的 230 多个扩展命令，在编译过程中 `gpu/command_buffer/build_gles2_cmd_buffer.py` 脚本会读取该文件并生成相应的 `*_autogen.*` 文件。
+
+在 `gpu/command_buffer/raster_cmd_buffer_functions.txt` 文件中定义了 Raster Context 使用到的 30 多个 GL 命令，它被 `gpu/command_buffer/build_raster_cmd_buffer.py` 脚本使用来生成相应的 `*_autogen.*` 文件。
+
+用于 WebGPU Context 的命令定义在 `gpu/command_buffer/webgpu_cmd_buffer_functions.txt` 中，被脚本 `gpu/command_buffer/build_webgpu_cmd_buffer.py` 用来生成相关代码。
+
+Command Buffer 通过这些自动生成的代码包装了所有的 GL 调用，然后将这些调用序列化后发送到 GPU 进程去执行。
+
 ## Command Buffer 的架构设计
 
 前面已经提到，Command Buffer 主要是为了解决多进程的渲染问题，因此它在设计上分两个端，分别是 client 端和 service 端。下图反映了 Chromium 中各种进程和 Command Buffer 中两个端的对应关系：
