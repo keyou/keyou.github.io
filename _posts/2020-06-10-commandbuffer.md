@@ -154,7 +154,9 @@ Command Buffer 定义了三种命令传输方式：
 
 [![command buffer](/data/command_buffer_gpu.svg)](/data/command_buffer_gpu.svg)
 
-下面针对 client 端和 service 端对主要的流程进行介绍。
+> 最新版本的类图也可在这里查看：[gpu/commandbuffer 类图](https://app.diagrams.net/?lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1&title=gpu.drawio#Uhttps%3A%2F%2Fdrive.google.com%2Fuc%3Fid%3D1TQEjkR1qkyRN3S_uLyOPRQxrQ1WhEZSS%26export%3Ddownload%22)
+
+下面针对 client 端和 service 端对类图中的主要流程进行介绍。
 
 ### client 端
 
