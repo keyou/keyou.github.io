@@ -70,7 +70,7 @@ contextC = eglCreateContxt(display,config,contextA,attrib_list); // 这里使用
 >
 > 1. 严格来讲 OpenGL 并没有规定如何在Context之间共享资源，现有的资源共享方案都是由 EGL/CGL/WGL 等提供的。
 > 2. 在不同平台上可能有不同的资源共享方法，比如 WGL 中的 `wglShareLists`，CGL中的 `EAGLSharegroup`,EGL中的 `share group`。
-> 3. 资源共享一般都是在相同进程中的多个Context之间进行的，跨进程的资源共享一般需要将资源从GPU读到内存，然后在另一个进程中再次把资源上传到GPU，由于涉及到资源从GPU->内存->GPU这个过程，因此应该尽量避免使用这种方式；
+> 3. 资源共享一般都是在相同进程中的多个Context之间进行的，跨进程的资源共享一般需要将资源从GPU读到内存，然后在另一个进程中再次把资源上传到GPU，由于涉及到资源从GPU->内存->GPU这个过程，因此应该尽量避免使用这种方式。但是有些平台会提供夸进程资源共享的机制，比如Android平台上的 `OES_EGL_image` 扩展。
 > 4. 在一个线程中可以创建多个GL Context，但是这种Context之间是否是会自动共享资源，或者自动进行同步，这些行为是没有定义的，有些实现是每个线程有一个命令队列，而有些实现是每一个Context一个命令队列。
 >
 > 注意(2):
@@ -83,6 +83,7 @@ contextC = eglCreateContxt(display,config,contextA,attrib_list); // 这里使用
 
 - [Synchronization - OpenGL Wiki](https://www.khronos.org/opengl/wiki/Synchronization)
 - [Sync Object - OpenGL Wiki](https://www.khronos.org/opengl/wiki/Sync_Object)
+- [eglimage in surfaceflinger - Wayne's Blog](https://waynewolf.github.io/2014/05/17/eglimage-in-surfaceflinger/)
 - [EAGLSharegroup - OpenGL ES - Apple Developer Documentation](https://developer.apple.com/documentation/opengles/eaglsharegroup)
 - [wglShareLists function (wingdi.h) - Win32 apps - Microsoft Docs](https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-wglsharelists)
 - <https://www.khronos.org/registry/EGL/extensions/KHR/EGL_KHR_fence_sync.txt>

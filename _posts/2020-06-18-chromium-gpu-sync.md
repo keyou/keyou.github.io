@@ -7,7 +7,48 @@ tags:
   - opengl
 ---
 
-## 
+## Chromium 中的资源共享
+
+### Mailbox 机制
+
+Mailbox 机制由 [`CHROMIUM_texture_mailbox`](https://source.chromium.org/chromium/chromium/src/+/master:gpu/GLES2/extensions/CHROMIUM/CHROMIUM_texture_mailbox.txt) 扩展提供，它定义了一种在不同Context之间共享 Texture 对象中的图片数据的方式，不管这些Context是否处于相同的`share group`。
+
+> 注意： 共享的是 Texture 对象中的图片数据，而不是 Texture 对象本身。
+
+它定义了2个方法：
+
+```c++
+void glProduceTextureDirectCHROMIUM (GLuint texture, GLbyte *mailbox);
+GLuint glCreateAndConsumeTextureCHROMIUM (const GLbyte *mailbox);
+```
+
+`glProduceTextureDirectCHROMIUM` 方法传入一个当前Context中已经存在的 `texture` 对象，然后返回一个指向该texture的 `mailbox`。后续可以在其他的Context中使用 `glCreateAndConsumeTextureCHROMIUM` 方法通过这个 `mailbox` 创建一个新的 `texture` 对象，新对象存在于新的 Context 中。结合 Command Buffer，可以实现跨进程共享Texture的效果。
+
+`Mailbox` 类本身是一个定长的字节数组，作为资源的唯一标识符，默认是16字节，系统全局唯一，可以跨进程。
+
+Mailbox 机制使用起来非常方便，但是它对 service 端的运行环境依赖非常严重，导致service端在某些平台上需要使用Virtual Context或者很多的同步机制才能实现，而这些会导致性能损失。再加上这种机制基于GL，无法很好的支持Vulkan，因此mailbox机制已经被标记为 `deprecated`，在当前的 Chromium 中只有 media 模块还在使用。新代码应该使用 `SharedImage` 机制。
+
+### SharedImage 机制
+
+ShareImage 机制从2018年开始引入，设计用来取代 mailbox 并且支持 Vulkan。它引入了一套SharedImage接口以及一个新的GL扩展 `CHROMIUM_shared_image`。
+
+[`CHROMIUM_shared_image`](https://source.chromium.org/chromium/chromium/src/+/master:gpu/GLES2/extensions/CHROMIUM/CHROMIUM_shared_image.txt) 扩展定义了一种在不同进程间共享图片/Texture资源的方式，称为 SharedImage 机制。
+
+```c++
+GLuint glCreateAndTexStorage2DSharedImageCHROMIUM (const GLbyte *mailbox);
+GLuint glCreateAndTexStorage2DSharedImageWithInternalFormatCHROMIUM (
+                                            const GLbyte *mailbox,
+                                            GLenum internal_format);
+void glBeginSharedImageAccessDirectCHROMIUM (GLuint texture,
+                                                   GLenum mode);
+void glEndSharedImageAccessDirectCHROMIUM (GLuint texture);
+```
+
+`glCreateAndTexStorage2DSharedImageCHROMIUM*` 方法创建一个新的 Texture 对象和一个新的 `mailbox` 并将它们关联到起来。之后应用使用 `glBeginSharedImageAccessDirectCHROMIUM` 方法表明要开始操作（读/写） `texture` 对象了，然后应用就可以像普通的 Texture 对象一样使用 texture 了，比如向它里面写数据，或者读取已经写入的数据等。操作结束之后，调用 `glEndSharedImageAccessDirectCHROMIUM` 方法表明操作结束。
+
+
+
+`GpuChannelMsg_CreateSharedImageWithData` 消息用来创建 SharedImage。
 
 ## 关于 native GL Context 和 virtual GL Context
 
@@ -88,22 +129,7 @@ std::unique_ptr<GLFence> GLFence::Create() {
 
 ### 多 virtual GL Context 使用 CHROMIUM sync tokens
 
-在 Chromium 中 Command buffer 的client端可以理解为 virtual GL Context。它提供了以上 virtual GL Context的优点。在介绍Command Buffer的同步机制之前，有几个 Command Buffer 的关键特性需要理解：
-
-- 将GL命令序列化的端称为 `client` 端，将GL命令反序列化并对应到native GL命令的端称为 `service` 端。比如，Browser 进程和 Render 进程都属于 client 端，GPU 进程属于  service 端。
-- 每个client端和server端之间都通过 `IPC channel (IPC::Channel`) 通道进行连接。
-- 每个 IPC channel 可以有多个`调度组（scheduling groups）`，每个调度组称为一个 `stream`。
-- 每个 stream 可以承载多个GL context,这些context都属于同一个`share group`，每个 stream 都有自己的调度优先级。
-- 每个 context 都对应一个 `command buffer`。
-- 每个 command buffer 都包含一系列的 GL 命令。
-
-下图反映了进程 和 client/service 的关系：
-
-![command buffer service&client](/data/command_buffer_service_client.svg)
-
-下图反映了 context/commandbuffer,stream,channel 之间的关系：
-
-![command buffer](/data/commandbuffer.svg)
+在 Chromium 中 Command buffer 的client端可以理解为 virtual GL Context。它提供了以上 virtual GL Context的优点。
 
 Chromium 提供了 [`CHROMIUM_sync_point`](https://chromium.googlesource.com/chromium/src.git/+/master/gpu/GLES2/extensions/CHROMIUM/CHROMIUM_sync_point.txt) 扩展来支持 Command Buffer GL Context 中资源的同步。该扩展包括以下几个方法：
 
@@ -120,3 +146,10 @@ void WaitSyncTokenCHROMIUM(const GLbyte *sync_token);
 ```c++
 
 ```
+
+
+------------------
+
+参考文档：
+
+- [Shared images and synchronization - Google Docs](https://docs.google.com/document/d/12qYPeN819JkdNGbPcKBA0rfPXSOIE3aIaQVrAZ4I1lM/edit#)
