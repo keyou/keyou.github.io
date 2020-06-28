@@ -114,6 +114,12 @@ void glEndRasterCHROMIUM(void);
 
 > 这些接口用于 `OOP-R(Out-Of-Process Raster)` 机制下的 Raster。关于 OOP-R 见后续文档。
 
+### SharedImage 架构设计
+
+![sharedimage](/data/gpu_share_image_arch.svg)
+
+SharedImage 被设计用于多进程架构，Client 端可以有多个，比如 Browser/Render/Gpu 进程都可以作为 Client 端，Service 端只能有一个，它运行在 Gpu 进程中。Client 和 Servcie 通过 IPC 进行通信。Client 端的接口主要包括 SharedImageInterface 和 2 个扩展。Service 端将数据存储在基于不同技术实现的 SharedImageBacking 中。
+
 ### SharedImage 实现原理
 
 SharedImage 部分的类图如下（单击查看大图）：
@@ -135,7 +141,7 @@ client 端发送的 `GpuChannelMsg_CreateSharedImage` IPC 消息会被路由到 
 
 所以不管是 SharedImageInterface 还是这两个扩展最终都是在操作 `SharedImagebacking`。因为它是真正存储数据的地方。
 
-另外，`gpu::GpuMemoryBufferFactory` 用来申请 Gpu 可以访问到的内存，在不同平台上有不同的机制，在 Android 上是 ANativeBuffer，在 Linux 上是 DMA buffer,而 Windows 上使用 DXGI。
+另外，`gpu::GpuMemoryBufferFactory` 用来申请 Gpu 可以访问到的内存，在不同平台上有不同的机制，在 Android 上是 AHardwareBuffer，在 Linux 上是 DMA buffer,而 Windows 上使用 DXGI。
 
 ## 总结
 
