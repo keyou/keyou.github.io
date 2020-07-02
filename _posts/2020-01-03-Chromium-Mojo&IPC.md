@@ -898,7 +898,7 @@ class ProducerListener : public IPC::Listener {
 mojo::ScopedMessagePipeHandle pipe = ...;
 
 ProducerListener listener;
-// 创建一个Server端的Channel，在底层使用Mojo的情况下Server和Client是等价的（TODO:需要验证）
+// 创建一个Server端的Channel，在底层使用Mojo的情况下Server和Client是等价的
 std::unique_ptr<IPC::Channel> ipc_channel =
   IPC::Channel::CreateServer(pipe.release(),&listener,xxx.task_runner());
 LOG(INFO) << "Producer Connect";
