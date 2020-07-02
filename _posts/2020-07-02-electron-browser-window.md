@@ -1,5 +1,5 @@
 ---
-title: Electron 窗口显示原理
+title: 在 Electron 中嵌入自定义图层
 categories:
   - chromium
   - electron
@@ -7,6 +7,10 @@ tags:
   - chromium
   - electron
 ---
+
+在使用 Electron 开发客户端程序的时候，会遇到有些内容的渲染比较消耗性能，或者有时需要在 Electron 中嵌入第三方界面的情况，这类需求可以通过在 Electron 中嵌入新的图层来实现。
+
+## Electron 包含的图层
 
 下面这段 js 代码创建一个窗口并加载指定网页：
 
@@ -64,7 +68,7 @@ BrowserWindow::New()
         views::internal::NativeWidgetPrivate::Show() // !!! 显示窗口
 ```
 
-最终 view 层级如下（省略了chromium内部的View）：
+最终创建出来的 view 层级如下（省略了chromium内部的View）：
 
 ```c++
 views::Widget
@@ -73,7 +77,9 @@ views::Widget
       views::WebView
 ```
 
-因此，如果想要在网页上添加一个 view 蒙层，可以添加到 `electron::InspectableWebContentsViewViews` 中，一些比较消耗性能的渲染可以在这个独立的view上进行绘制，从而提高性能。类似下面这样：
+## 嵌入自定义 View
+
+从上面的介绍可以看到，如果想要在网页上添加一个 view 图层，可以添加到 `electron::InspectableWebContentsViewViews` 中，类似下面这样：
 
 ```c++
 views::Widget
@@ -84,4 +90,4 @@ views::Widget
       MyView2
 ```
 
-`MyView1` 位于 `WebView` 之下，用来在网页下面渲染内容，`MyView2` 位于 `views::WebView` 之上，用来在网页上面渲染内容。
+`MyView1` 位于 `views::WebView` 之下，用来在网页下面渲染内容，`MyView2` 位于 `views::WebView` 之上，用来在网页上面渲染内容。在项目中根据需要选择。
