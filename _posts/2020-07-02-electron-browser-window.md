@@ -23,7 +23,11 @@ app.whenReady().then(() => {
 下面是 `new BrowserWindow()` 创建并显示窗口的主要流程：
 
 ```c++
-js require("electron") 获取 BrowserWindow 类
+// 说明：
+// js 开头表示是 js 调用,其它是 C++ 调用
+// !!! 表示对接 Chromium 的关键逻辑
+
+js require("electron") // 获取 BrowserWindow 类
 js new BrowserWindow()
 BrowserWindow::New()
   BrowserWindow::BrowserWindow()
@@ -38,7 +42,7 @@ BrowserWindow::New()
             views::View::AddChildView() // !!! 将 NativeWindowViews 的 rootview 添加到 widget
       NativeWindow::InitFromOptions()
     elctron::api::WebContents::Create()
-      elctron::api::WebContents::WebContents() 包装 InspectableWebContents
+      elctron::api::WebContents::WebContents() // 包装 InspectableWebContents
         content::WebContents::Create() // !!!
         CommonWebContentsDelegate::InitWithWebContents()
           InspectableWebContents::Create()
