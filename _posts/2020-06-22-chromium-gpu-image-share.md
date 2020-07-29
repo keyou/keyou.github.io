@@ -1,5 +1,5 @@
 ---
-title: Chromium GPU 资源共享(Shared Image)
+title: Chromium GPU Resource Share (Shared Image)
 published: true
 tags:
   - chromium

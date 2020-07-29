@@ -1,12 +1,13 @@
 ---
-title: 常用 GL extensions
-published: false
+title: 常见 GL 扩展前缀
 tags:
   - graphics
   - opengl
   - egl
   - opengles
 ---
+
+在开发 OpenGL 程序的时候，经常看到各种不同的扩展前缀，下面是我收集到的前缀：
 
 OpenGL 扩展的常见[前缀](https://www.opengl.org/archives/resources/features/OGLextensions/)：
 
@@ -46,4 +47,3 @@ OpenGL 扩展的常见[前缀](https://www.opengl.org/archives/resources/feature
 [Android 提供的OpenGL扩展](https://www.khronos.org/registry/OpenGL/extensions/ANDROID/)：
 
 - ANDROID_extension_pack_es31a.txt
-
