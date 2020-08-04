@@ -9,13 +9,14 @@ tags:
   - electron
 ---
 
+```c++
 Display::DrawAndSwap
   DirectRender::DrawFrame
     DirectRender::DrawRenderPassAndExecuteCopyRequests
       DirectRender::DrawRenderPass
         SkiaRender::FinishDrawingQuadList
           SkiaOutputSurfaceImpl::SubmitPaint
-            if 在绘制root，则设定 deferred_framebuffer_darw_closure(简称DFDC) 为 SkiaOutputSurfaceImplOnGpu::FinishPaintCurrentFrame,
+            if 在绘制root，则设定 deferred_framebuffer_draw_closure(简称DFDC) 为 SkiaOutputSurfaceImplOnGpu::FinishPaintCurrentFrame,
             else ScheduleGpuTask(SkiaOutputSurfaceImplOnGpu::FinishPaintRenderPass)
   SkiaRender::SwapBuffers
     SkiaOutputSurfaceImpl::SwapBuffers
@@ -27,5 +28,5 @@ Display::DrawAndSwap
           else SkiaOutputDeviceGL::SwapBuffers
             if gl::GLSurface 支持异步刷新，则 gl::GLSurface::SwapBuffersAsync(SkiaOutputDeviceGL::DoFinishSwapBuffers)
             else gl::GLSurface::SwapBuffers + SkiaOutputDeviceGL::FinishSwapBuffers
-
+```
 
