@@ -7,6 +7,10 @@ tags:
   - opengl
 ---
 
+> Update:
+>
+> - 2020.8.5: 添加使用 OOP-D 和 OOP-R 接口的代码示例。
+
 资源共享指的是在一个 Context 中的创建的 Texture 资源可以被其他 Context 所使用。一般来讲只有相同 `share group` Context 创建的 Texture 才可以被共享，而 Chromium 设计了一套允许不同 `share group` 并且跨进程的 Texture 共享机制。
 
 Chromium 中有新旧两套共享 Texture 的机制，一套是 Mailbox 机制，一套是 SharedImage 机制。
@@ -99,7 +103,40 @@ void glEndSharedImageAccessDirectCHROMIUM(GLuint texture);
 
 `glCreateAndTexStorage2DSharedImageCHROMIUM*` 方法根据传入的 `mailbox` 创建一个新的 Texture 对象。然后应用可以使用 `glBeginSharedImageAccessDirectCHROMIUM` 方法获取读/写 `texture` 对象的权限，然后使用常规的读写texture的GL命令访问texture的内容，比如`glGetTexImage`，`glReadPixels`，`glTexImage2D`等或者使用skia来间接访问texture的内容。操作结束之后，调用 `glEndSharedImageAccessDirectCHROMIUM` 方法释放权限。
 
-> 这些接口用于 `OOP-D(Out-Of-Process Display Compositor)` 机制下的 Raster。关于 OOP-D 见后续文档。
+这些接口用于 `OOP-D(Out-Of-Process Display Compositor)` 机制下的 Raster。关于 OOP-D 见后续文档，下面的代码演示使用 OOP-D 接口创建 SharedImage：
+
+```c++
+// cc/raster/gpu_raster_buffer_provider.cc
+
+static void RasterizeSourceOOPD(const RasterSource* raster_source,...) {
+  gpu::raster::RasterInterface* ri = context_provider->RasterInterface();
+  auto* sii = context_provider->SharedImageInterface();
+
+  // 创建空的 SharedImage
+  auto mailbox = sii->CreateSharedImage(
+      resource_format, resource_size, color_space, kTopLeft_GrSurfaceOrigin,
+      kPremul_SkAlphaType, flags, gpu::kNullSurfaceHandle);
+  ri->WaitSyncTokenCHROMIUM(sii->GenUnverifiedSyncToken().GetConstData());
+
+  // 使用 OOP-D 接口给 SharedImage 填充内容，内容来自 RasterSource
+  GLuint texture_id = ri->CreateAndConsumeForGpuRaster(mailbox);
+  ri->BeginSharedImageAccessDirectCHROMIUM(
+      texture_id, GL_SHARED_IMAGE_ACCESS_MODE_READWRITE_CHROMIUM);
+  {
+    // 使用 texture_id 作为渲染目标
+    viz::ClientResourceProvider::ScopedSkSurface scoped_surface(texture_id,...);
+    SkSurface* surface = scoped_surface->surface();
+    SkCanvas* canvas = surface->getCanvas();
+    // 将 RasterSource 中的 DisplayItem 应用到 Canvas 中
+    raster_source->PlaybackToCanvas(canvas,...);
+  }
+  ri->EndSharedImageAccessDirectCHROMIUM(texture_id);
+  ri->DeleteGpuRasterTexture(texture_id);
+  
+  // 后续就可以使用 SharedImage 创建 TransferableResource
+  ...
+}
+```
 
 ### CHROMIUM_raster_transport
 
@@ -112,7 +149,35 @@ void glEndRasterCHROMIUM(void);
 
 `glBeginRasterCHROMIUM` 方法表示要开始执行 Raster 操作了，Raster的结果存放到传入的 `mailbox` 对应的 SharedImage 中。`glRasterCHROMIUM` 将 `cc::DisplayItemList` 序列化后发送到service端。参数`raster_shm_id`指向存储 `cc::DisplayItemList` 序列化数据的共享内存。`glEndRasterCHROMIUM` 结束 Raster 操作。
 
-> 这些接口用于 `OOP-R(Out-Of-Process Raster)` 机制下的 Raster。关于 OOP-R 见后续文档。
+这些接口用于 `OOP-R(Out-Of-Process Raster)` 机制下的 Raster。关于 OOP-R 见后续文档，
+下面的代码演示使用 OOP-R 接口创建 SharedImage：
+
+```c++
+// cc/raster/gpu_raster_buffer_provider.cc
+
+static void RasterizeSourceOOPR(const cc::RasterSource* raster_source,...) {
+  gpu::raster::RasterInterface* ri = context_provider_->RasterInterface();
+  auto* sii = context_provider->SharedImageInterface();
+  
+  // 创建空的 SharedImage
+  auto mailbox = sii->CreateSharedImage(
+        resource_format, resource_size, color_space, kTopLeft_GrSurfaceOrigin,
+        kPremul_SkAlphaType, flags, gpu::kNullSurfaceHandle);
+  ri->WaitSyncTokenCHROMIUM(sii->GenUnverifiedSyncToken().GetConstData());
+
+  // 使用 OOP-R 接口给 SharedImage 填充内容，内容来自 RasterSource
+  ri->BeginRasterCHROMIUM(
+      raster_source->background_color(), playback_settings.msaa_sample_count,
+      playback_settings.use_lcd_text, color_space, mailbox.name);
+  // 注意这里直接将 DisplayItemList 传到 Service 端进行 Raster，
+  // 这是 OOP-R 和 OOP-D 的本质区别。
+  ri->RasterCHROMIUM(raster_source->GetDisplayItemList().get(),...);
+  ri->EndRasterCHROMIUM();
+  
+  // 后续就可以使用 SharedImage 创建 TransferableResource
+  ...
+}
+```
 
 ### SharedImage 架构设计
 
