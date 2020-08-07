@@ -138,6 +138,8 @@ CF 是 `viz` 中的核心数据结构，它代表某块区域中UI的一帧画�
 
 ## `viz` 的架构设计
 
+### `viz` 的三个端
+
 在设计层面上 viz 的架构如下图所示：
 
 ![viz client](/data/viz-client-host-service.svg)
@@ -156,11 +158,17 @@ CF 是 `viz` 中的核心数据结构，它代表某块区域中UI的一帧画�
 
 绿色部分为 client 的实现，负责提交 CF 到 GPU, 橙色部分 `ui::Compositor` 为 host 的实现，负责将所有的 client 注册到 service，红色部分为 service 端的实现，负责接收、合成，并最终渲染 CF。
 
+### `viz` 的类图
+
 下面是 viz 更详细的类图：
 
 [![viz archtecture](/data/viz-classes.svg)](/data/viz-classes.svg)
 
-关于每个类的作用图中已经有说明，这里就不再赘述了。这里主要说一下 viz 中的数据流。
+TODO: 添加对核心类的解释
+
+关于每个类的作用图中已经有说明，这里就不再赘述了。
+
+### `viz` 的数据流
 
 `viz` 中的核心数据为 CF，当用户和网页进行交互时，会触发 UI 的改变，这最终会导致 viz client （比如 cc::LayerTreeHostImpl） 创建一个新的 CF 并使用 `viz::mojom::CompositorFrameSink` 接口将该 CF 提交到 service，service 中的 `viz::CompositorFrameSinkSupport` 会为该 CF 所属的 client 创建一个 `viz::Surface`,然后把 CF 放入该 `viz::Surface` 中。当 servcie 中的 `viz::DisplayScheduler` 到达下一个调度周期的时候，会通知 `viz::Display` 取出当前的 `viz::Surface`，并交给 `viz::SurfaceAggregator` 进行合成，合成的结果会被交给 `viz::DirectRenderer` 进行渲染。`viz::DirectRenderer` 并不直接渲染，它从 `viz::OutputSurface` 中取出渲染表面，然后让其子类在该渲染表面上进行绘制。`viz::OutputSurface` 封装了渲染表面，比如窗口，内存bitmap等。绘制完成之后，`viz::Display` 会调用 `viz::DirectRenderer::SwapBuffer` 将该 CF 最终显示出来。
 
@@ -187,7 +195,9 @@ Display::DrawAndSwap
             else gl::GLSurface::SwapBuffers + SkiaOutputDeviceGL::FinishSwapBuffers
 ```
 
-最后需要说明的是，viz 的 API 是分层的。从分层架构的角度看，它分了3层，分别为最底层核心实现，中间层mojo接口，最上层viz服务。
+### `viz` 的分层
+
+从分层架构的角度看，viz 的 API 分了3层，分别为最底层核心实现，中间层mojo接口，最上层viz服务。
 
 最底层是viz的核心实现，主要接口包括 `viz::FrameSinkManager(Impl)`, `viz::CompositorFrameSink(Support)`, `viz::Display`, `viz::OutputSurface`。
 使用这些接口是使用 viz 最直接的方式，提供最大的灵活性。但这层接口不提供夸进程通信的能力。
@@ -199,7 +209,46 @@ Chromium中直接使用这一层的接口的地方不多，具体demo参考 [chr
 
 另外，在 viz 中还有一套专门用于 `viz` 中 GPU 渲染的接口 `viz::*ContextProvider`。它主要负责为 viz 初始化 GL 环境，使 viz 可以使用 GPU 进行渲染。
 
+### `viz` 的线程架构
+
 viz 是多线程架构，其中最重要的有两个线程，一个是 `VizCompositorThread` 一个是 `CrGpuMain` （多进程架构下）或者 `Chrome_InProcGpuThread`（单进程架构下）。`VizCompositorThread` 是 viz 中的 Compositor 线程，帧率的调度，CF 的合成都在该线程中，`viz::Display`, `viz::DisplayScheduler`，`viz::SurfaceAggregator`, `viz::DirectRenderer` 都运行在该线程中。而所有最终真实的绘制（主要指 GL 调用）最终都运行在 `CrGpuMain` 或 `Chrome_InProcGpuThread` 线程中。
+
+TODO: 完善线程相关文档
+
+### `viz` 的 Overlay 机制
+
+TODO: 完善 Overlay 文档
+
+### `viz` 的 ID 设计
+
+每一个 client 都至少对应一个 `FrameSinkId` 和 `LocalSurfaceId`，在 client 的整个生命周期中所有 FrameSink 的 `client_id`（见下文）都是固定的，而 `LocalSurfaceId` 会根据 client 显示画面的 size 或 scale factor 的改变而改变。他们两个共同组成了 `SurfaceId`，用于在 service 端全局标识一个 `Surface` 对象。也就是说对于每一个 `Surface`，都可以获得它是由谁在什么 size 或 scale facotr 下产生的。
+
+#### `FrameSinkId`
+
+- `client_id` = uint32_t, 每个 client 都会有唯一的一个 ClientId 作为标识符，标识一个 CompositorFrame 是由哪个 client 产生的，也就是标识 CompositorFrame 的来源；
+- `sink_id` = uint32_t, 在 service 端标识一个 CompositorFrameSink 实例，Manager 会为每个 client 在 service 端创建一个 CompositorFrameSink，专门用于处理该 client 生成的 CompositorFrame，也就是标识 CompositorFrame 的处理端；
+- `FrameSinkId = client_id + sink_id`，将 CF 的来源和处理者关联起来。
+
+FrameSinkId 可以由 `FrameSinkIdAllocator` 辅助类生成。
+
+在实际使用中，往往一个进程是一个 client，专门负责一个业务模块 UI 的实现，而一个业务往往由很多的 UI 元素组成，因此可以让每个 FrameSink 负责一部分的 UI，此时就用到了单 client 多 FrameSink 机制，这种机制可以实现 UI 的局部刷新（多 client 也能实现这一点）。在 chrome 中浏览器主程序是一个 client，而每一个插件都是一个独立的 client，网页中除了一些特殊的元素比如 iframe和offscreen canvas位于单独的client中，其他元素全部都位于同一个client中。
+
+#### `LocalSurfaceId`
+
+- `parent_sequence_number` = uint32_t, 当自己作为父 client，并且 surface 的 size 和 device scale factor 改变的时候改变；
+- `child_sequence_number` = uint32_t, 当自己作为子 client，并且 surface 的 size 和 device scale factor 改变的时候改变；
+- `embed_token` = 可以理解为一个随机数， 用于避免 LocalSurafaceId 可猜测，当父 client 和子 client 的父子关系改变的时候改变；
+- `LocalSurfaceId = parent_sequence_number + child_sequence_number + embed_token`，当 client 的 size 当前 client 产生的画面改变。
+
+LocalSurfaceId 可以由 `ParentLocalSurfaceIdAllocator` 或者 `ChildLocalSurfaceIdAllocator` 这两个辅助类生成。前者用于由父 client 负责生成自己的 LocalSurfaceId 的时候，后者用于由子 client 自己负责生成自己的 LocalSurfaceId 的时候。使用哪种方式要看自己的 UI 组件之间的依赖关系的设计。
+
+LocalSurfaceId 在很多时候都包装在 `LocalSurfaceIdAllocation` 内，该类记录了 LocalSurfaceId 的创建时间。改时间在创建 CF 的时候需要用到。
+
+#### `SurfaceId`
+
+`SurfaceId = FrameSinkId + LocalSurfaceId`
+
+SurfaceId 全局唯一记录一个显示画面，它可以被嵌入其他的 CF 或者 RenderPass 中，从而实现显示界面的嵌入和局部刷新。除了在 Client 端使用 SurfaceDrawQuad 进行 Surface 嵌套之外，大部分应用场景都在 service 端。
 
 ### 小结2
 
@@ -220,6 +269,11 @@ TODO: 完善渲染文档。
 ## `viz` 的初始化
 
 这部分主要讲解 Chromium 初始化 viz 的过程，由于这个过程是固定的，讲起来就是流水帐，所以建议大家直接阅读 demo 源码 [chromium_demo/demo_viz_layer.cc at c/80.0.3987 · keyou/chromium_demo](https://github.com/keyou/chromium_demo/blob/c/80.0.3987/demo_viz/demo_viz_layer.cc)。这个 demo 使用了 viz 的最上层 servcie 接口，和 Chromium 的用法没有太大的差别。
+
+## `viz` 的应用实例
+
+- 如何实现 OffscreenCanvas；
+- 如何实现 Tab/Window Capture;
 
 -----
 
