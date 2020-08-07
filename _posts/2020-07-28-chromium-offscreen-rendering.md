@@ -27,9 +27,4 @@ tags:
 
 因此，要想将 Chromium 以离屏渲染的方式嵌入自己的应用，需要将Chromium中的离屏渲染目标暴露出来，允许上层应用访问。如果选择内存作为离屏渲染目标，可以使用共享内存来存储渲染结果，CEF 的离屏渲染就是通过这种方式，但这种方式只支持软件渲染，性能一般。如果选择以 gl texture 作为离屏渲染目标，需要使用共享Context来实现资源的共享，代码演示见 [demo_viz_layer_offscreen](https://github.com/keyou/chromium_demo/tree/c/80.0.3987/demo_viz).这种方式所能实现的性能更高。
 
-关于 Chromium 中各种渲染目标的介绍详见 `viz` 相关文档。
-
-> `viz` 相关的文档还没有上传，可以先查看viz的相关类图：
->
-> [![viz+cc](/data/viz+cc.svg)](/data/viz+cc.svg)
->
+关于 Chromium 中各种渲染目标的介绍见 `viz` 的文档 [How viz works]({% post_url 2020-07-29-how-viz-works %})。

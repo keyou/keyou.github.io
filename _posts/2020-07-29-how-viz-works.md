@@ -158,15 +158,49 @@ CF 是 `viz` 中的核心数据结构，它代表某块区域中UI的一帧画�
 
 绿色部分为 client 的实现，负责提交 CF 到 GPU, 橙色部分 `ui::Compositor` 为 host 的实现，负责将所有的 client 注册到 service，红色部分为 service 端的实现，负责接收、合成，并最终渲染 CF。
 
+### `viz` 的线程架构
+
+viz 是多线程架构，其中最重要的有两个线程，一个是 `VizCompositorThread`，也称为（viz的） Compositor 线程（注意和 cc 中的 Compositor 线程区分，它们没有关系）。另一个是 `CrGpuMain` （多进程架构下）或者 `Chrome_InProcGpuThread`（单进程架构下）线程，也称为 GPU 线程(只有在开启了硬件加速渲染时才存在)。帧率的调度，CF 的合成，DrawQuad 的绘制都发生在Compositor线程中，`viz::Display`, `viz::DisplayScheduler`，`viz::SurfaceAggregator`, `viz::DirectRenderer` 也运行在该线程中。而所有最终真实的绘制（比如 GL 的执行，Real SwapBuffer）最终都运行在 `CrGpuMain` 或 `Chrome_InProcGpuThread` 线程中。
+
+如果要在架构上体现这两个线程，可以这样划分：
+
+![viz archtecture](/data/viz-threads.svg)
+
+虚线之上运行在 Compositor 线程，虚线之下运行在 GPU 线程，OutputSurface 需要对接 DirectRenderer 和最下层的渲染，所以不同部分运行在不同的线程中。
+
+目前 Compositor 线程和 GPU 线程之间的数据传递有两种方式，一种是先将 GL 调用放入进程内的 CommandBuffer，然后在 GPU 线程中取出 GL 命令并执行，GLOutputSurface 使用这种方式。另一种是直接通过 PostTask 将要渲染的操作发送到 GPU 线程，SkiaOutputSurface 使用这种方式（关于 GLOutputSurface 和 SkiaOutputSurface 见下文）。
+
 ### `viz` 的类图
 
 下面是 viz 更详细的类图：
 
 [![viz archtecture](/data/viz-classes.svg)](/data/viz-classes.svg)
 
-TODO: 添加对核心类的解释
+- `viz::mojom::CompositorFrameSinkClient` 作为 client，表示一个画面的来源；
+- `viz::CompositorFrameSink(Impl/Support)` 用于处理 CF 的地方，一个 client 可以有多个 CompositorFrameSink；
+- `viz::RootCompositorFrameSinkImpl` 作用和 CompositorFrameSink 类似，只不过专门处理 root client，每个 client 有且只有一个该对象。它还负责为对应的 client 初始化渲染环境，包括 OutputSurface， Display 的创建。
+- `viz::FrameSinkManagerImpl` 用于管理 CompositorFrameSink, 包括其创建和销毁；
+- `viz::SurfaceAggregator` 负责 Surface/CF 的合成，比如dirty区域的计算等，不负责绘制；
+- `viz::OutputSurface` 封装渲染目标，和各平台的渲染目标直接对接；
+- `viz::DirectRenderer` 封装绘制 DrawQuad 的方式，负责将 DrawQuad 绘制到 OutputSurface 上；
+- `viz::Display` 一个中控类，将 SurfaceAggregator/DirectRenderer 以及 Overlay 的功能串起来形成流水线；
+- `viz::DisplayScheduler` 调度 `viz::Display` 何时应该采取行动；
 
-关于每个类的作用图中已经有说明，这里就不再赘述了。
+### `viz` 的渲染目标
+
+`viz::DirectRenderer` 和 `viz::OutputSurface` 用于管理渲染目标 。他们对理解 Chromium UI 的呈现方式至关重要。这两个类并不是相互独立的，在 Chromium 中他们有以下组合：
+
+1. `viz::GLRenderer` + `viz::GLOutputSurface`  
+  GLRenderer 已经被标记为 deprecated, 未来会被 SkiaRenderer 取代。它使用基于 CommandBuffer 的 GL Context 来渲染 DrawQuad 到 GLOutputSurface 上，GLOutputSurface 使用窗口句柄创建 Native GL Context。GL 调用发生在 VizCompositorThread 线程中，通过 InProcessCommandBuffer 这些 GL 调用最终在 `CrGpuMain` 线程中执行。关于 CommandBuffer 相关内容可以参考 [Chromium Command Buffer]({% post_url 2020-06-10-commandbuffer %})。  
+  GLOutputSurface 有一系列的子类，不同的子类对接不同平台的渲染目标，比如 GLOutputSurfaceAndroid 用于对接Android平台的渲染，GLOutputSurfaceOffscreen 用于支持 GL 的离屏渲染等。
+
+2. `viz::SkiaRenderer` + `viz::SkiaOutputSurface(Impl)` + `viz::SkiaOutputDevice`  
+  SkiaRenderer 是未来的发展方向，以后所有其他的渲染方式都会被这种方式取代。因为它具有最大的灵活性，同时支持GL渲染，Vulkan渲染，离屏渲染等。  
+  SkiaRenderer 将 DrawQuad 绘制到由 SkiaOutputSurfaceImpl 提供的 canvas 上，但是该 canvas 并不会进行真正的绘制动作，而是通过 skia 的 ddl(SkDeferredDisplayListRecorder) 机制把这些绘制操作记录下来，等到所有的 RenderPass 绘制完成，这些被记录下来的绘制操作会被通过 `SkiaOutputSurfaceImpl::SubmitPaint` 发送到 `SkiaOutputSurfaceImplOnGpu` 中进行真实的绘制，根据名字可知该类运行在 GPU 线程中。  
+  SkiaOutputSurface 对渲染目标的控制是通过 SkiaOutputDevice 实现的，后者有很多子类，其中 SkiaOutputDeviceOffscreen 用于实现离屏渲染，SkiaOutputDeviceGL 用于GL渲染。  
+
+3. `viz::SoftwareRenderer` + `viz::SoftwareOutputSurface` + `viz::SoftwareOutputDevice`  
+   SoftwareRenderer 用于纯软件渲染，当关闭硬件加速的时候使用该种渲染方式。这种方式逻辑相对简单，因此留给读者去探索
 
 ### `viz` 的数据流
 
@@ -208,12 +242,6 @@ Chromium中直接使用这一层的接口的地方不多，具体demo参考 [chr
 最上层viz服务接口主要将 `viz` 服务化，提供将viz运行在独立进程的能力。这一层的主要接口包括 `viz::GpuHostImpl`, `viz::GpuServiceImpl`, `viz::VizMainImpl`, `viz::Gpu`。这些接口需要和中间层mojo接口配合才能起作用，在 Chromium 的多进程架构中使用了该层接口。使用该层接口的demo参考 [chromium_demo/demo_viz_gui_gpu.cc at c/80.0.3987 · keyou/chromium_demo](https://github.com/keyou/chromium_demo/blob/c/80.0.3987/demo_viz/demo_viz_gui_gpu.cc)。
 
 另外，在 viz 中还有一套专门用于 `viz` 中 GPU 渲染的接口 `viz::*ContextProvider`。它主要负责为 viz 初始化 GL 环境，使 viz 可以使用 GPU 进行渲染。
-
-### `viz` 的线程架构
-
-viz 是多线程架构，其中最重要的有两个线程，一个是 `VizCompositorThread` 一个是 `CrGpuMain` （多进程架构下）或者 `Chrome_InProcGpuThread`（单进程架构下）。`VizCompositorThread` 是 viz 中的 Compositor 线程，帧率的调度，CF 的合成都在该线程中，`viz::Display`, `viz::DisplayScheduler`，`viz::SurfaceAggregator`, `viz::DirectRenderer` 都运行在该线程中。而所有最终真实的绘制（主要指 GL 调用）最终都运行在 `CrGpuMain` 或 `Chrome_InProcGpuThread` 线程中。
-
-TODO: 完善线程相关文档
 
 ### `viz` 的 Overlay 机制
 
