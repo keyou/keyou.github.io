@@ -20,11 +20,11 @@ tags:
 3. CF 的合成；
 4. CF 的渲染；
 
-`viz` 的初始化只是一次性的过程，大多数人应该都更加关心 `viz` 是如何执行渲染的，因此我把 `viz` 的初始化放在最后介绍。CF 是 `viz` 中最重要的数据结构，因此我们先来看下 CF 的创建。
+`viz` 的初始化只是一次性的过程，而且比较枯燥，所以放到最后再介绍。先来看一下 `viz::CompositorFrame（简称 CF）` 的创建，因为它是 `viz` 中的核心数据结构。
 
 ## CF 的创建
 
-一个 CF 表示一个矩形显示区域中的一帧画面。内部存储了 3 类数据，如下图所示：
+一个 CF 对象表示一个矩形显示区域中的一帧画面。内部存储了 3 类数据，分别是 CompositorFrameMetadata, TransferableResoruce 和 RenderPass/DrawQuad，如下图所示：
 
 ![compositor frame](/data/viz-compositor-frame.svg)
 
@@ -128,7 +128,7 @@ viz::ResourceId CreateGpuResource(const gfx::Size& size,
 - `viz::RenderPassDrawQuad` 内部引用另外一个 RenderPass 的 Id；
 - `viz::SurfaceDrawQuad` 内部保存一个 viz::SurfaceId，该 Surface 的内容由其他 `CompositorFrameSinkClient` 创建，**用于 viz 的嵌套**，比如 OOPIF,OffscreenCanvas等；
 
-由于 `viz::RenderPassDrawQuad` 的存在使得 CF 中可以存储一颗 RenderPass 树，由于 `viz::SurfaceDrawQuad` 的存在使得viz可以实现UI的夸进程嵌套。
+由于 `viz::RenderPassDrawQuad` 的存在使得 CF 中可以存储一个 RenderPass 树，由于 `viz::SurfaceDrawQuad` 的存在使得viz可以实现UI的夸进程嵌套。
 
 关于这些 RenderPass 和 DrawQuad 的应用示例见 [chromium_demo/demo_viz_layer.cc at c/80.0.3987 · keyou/chromium_demo](https://github.com/keyou/chromium_demo/blob/c/80.0.3987/demo_viz/demo_viz_layer.cc)。
 
