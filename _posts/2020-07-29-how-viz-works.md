@@ -300,8 +300,13 @@ TODO: 完善渲染文档。
 
 ## `viz` 的应用实例
 
-- 如何实现 OffscreenCanvas；
-- 如何实现 Tab/Window Capture;
+TODO: 完善应用实例
+
+### OffscreenCanvas
+
+### Tab/Window (FrameSink) Capture
+
+见 `//components/viz/service/frame_sinks/video_capture/frame_sink_video_capturer_impl.h`
 
 -----
 
