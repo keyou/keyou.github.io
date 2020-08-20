@@ -130,6 +130,10 @@ viz::ResourceId CreateGpuResource(const gfx::Size& size,
 
 由于 `viz::RenderPassDrawQuad` 的存在使得 CF 中可以存储一个 RenderPass 树，由于 `viz::SurfaceDrawQuad` 的存在使得viz可以实现UI的夸进程嵌套。
 
+下面是一个典型的 CF 示例(图片来自[这里](https://chromium.googlesource.com/chromium/src/+/master/docs/how_cc_works.md))：
+
+![CompositorFrame](/data/2020-08-19-17-08-52.png)
+
 关于这些 RenderPass 和 DrawQuad 的应用示例见 [chromium_demo/demo_viz_layer.cc at c/80.0.3987 · keyou/chromium_demo](https://github.com/keyou/chromium_demo/blob/c/80.0.3987/demo_viz/demo_viz_layer.cc)。
 
 ### 小结1
