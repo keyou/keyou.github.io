@@ -29,7 +29,7 @@ CDN的逻辑为 `接收流`->`缓存`->`发送流`，当客户端从CDN拉流时
 其他：
 
 - 丢包会极大影响 TCP 的可用带宽；
-- 使用 flv.js 播放视频有三个缓存，分别是 `IOController` 中的 `_stashBuffer`，它缓存直接从网络上获取到的数据，通过将 `enableStashBuffer` 设为 false 可以关闭主动缓存，除非数据无法完整解码；然后是 `MSEController` 中 `_pendingSegments`，它缓存传给 SourceBuffer 的数据，一般不会产生堆积，它会尽最大努力将数据放入SourceBuffer；最后是浏览器video本身的缓存，位于浏览器中的缓存可以通过跳转或者倍速播放进行追帧。
+- 使用 flv.js 播放视频有三个缓存，分别是 `IOController` 中的 `_stashBuffer`，它缓存直接从网络上获取到的数据，通过将 `enableStashBuffer` 设为 false 可以关闭主动缓存，但是不能完全禁用，因为无法完整解码的数据必须要先缓存下来以便和后续数据进行合并解码；然后是 `MSEController` 中的 `_pendingSegments`，它缓存传给 SourceBuffer 的数据，一般不会产生堆积，它会尽最大努力将数据放入SourceBuffer；最后是浏览器video本身的缓存，位于浏览器中的缓存可以通过跳转或者倍速播放进行追帧。
 
 使用 mpv 的低延时模式播放直播流，播放后使用 `I` 显示 OSD 信息：
 
