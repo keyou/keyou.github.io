@@ -94,7 +94,7 @@ native GL Context 直接和驱动打交道，而 virtual GL Context 是由应用
 
 下图表示 native GL Context 和 virtual GL Context 的关系：
 
-![virtual gl context](../data/virtual-gl-context.svg)
+![virtual gl context](/data/virtual-gl-context.svg)
 
 使用 virtual GL Context 的好处有：
 
