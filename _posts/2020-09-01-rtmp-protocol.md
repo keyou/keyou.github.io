@@ -12,7 +12,7 @@ tags:
 
 RTMP 协议基于 TCP，由两部分构成，一部分是 RTMP Chunks，一部分是 RTMP Message。Message 会被拆分成多个 Chunks 进行传输，这主要是为了在单条通信链路上实现不同 Message 的发送优先级控制。比如要发送 1M 的视频数据，为了避免耗时太长，所以把数据拆分为每个 10K 大小的多个 Chunk。Message 和 Chunk 的关系如下图所示（图片来自[这里](https://blog.pogrebnyak.info/what-is-rtmp-and-how-its-used-in-live-streaming/)）：
 
-![rtmp chunk stream](../data/2020-09-03-14-36-23-rtmp-chunk-stream.png)
+![rtmp chunk stream](/data/2020-09-03-14-36-23-rtmp-chunk-stream.png)
 
 关于 RTMP 还需要了解以下几部分内容：
 
