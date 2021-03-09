@@ -5,8 +5,10 @@ tags:
   - rendering
 ---
 
-要开发XR应用，一般都要用到某种XR SDK，这些SDK一般会包含以下这些功能：  
+要开发XR应用，一般都要用到某种XR SDK，这些SDK一般会包含以下这些功能：
+
 ![xr-sdk](/data/xr-sdk.svg)
+
 这些功能分为两类，一类是输入输出（Input），一类是渲染（Rendering）。
 
 ## 输入输出（Input）
@@ -15,8 +17,10 @@ tags:
 
 ### 3DoF/6DoF
 
-Dof 表示 **D**egrees **o**f **F**reedom，即自由度。3Dof 表示3个自由度，分别是 pitch，yall，row，也就是空间中的任意旋转。在XR中主要表示应用可以获取XR眼镜在空间中的旋转姿态。支持 6Dof 的眼镜，应用除了可以获取到旋转姿态之外还可以获取到位置信息。比如眼镜向前后，向左右，向上下移动的距离。示意图如下：  
+Dof 表示 **D**egrees **o**f **F**reedom，即自由度。3Dof 表示3个自由度，分别是 pitch，yall，row，也就是空间中的任意旋转。在XR中主要表示应用可以获取XR眼镜在空间中的旋转姿态。支持 6Dof 的眼镜，应用除了可以获取到旋转姿态之外还可以获取到位置信息。比如眼镜向前后，向左右，向上下移动的距离。示意图如下：
+
 ![](https://virtualspeech.com/img/blog/3dof-6dof-vr-headset.jpg)
+
 所以，支持3DoF的眼镜，用户只能呆在原地通过转头的方式和应用交互，支持6DoF的眼镜，用户可以通过四处走动的方式和应用交互，体验显然要比3DoF好很多。
 
 3Dof 数据一般通过获取加速度计，陀螺仪和磁力计来计算得出，算法相对简单。算法的难点主要包括静态检测，抗干扰，滤波算法，传感器融合等。6DoF 算法就相对要复杂很多，一般还要使用到摄像头，深度传感器，激光雷达等传感器。
@@ -38,6 +42,7 @@ Dof 表示 **D**egrees **o**f **F**reedom，即自由度。3Dof 表示3个自由
 渲染主要解决画面的显示问题，由于XR应用的显示和普通App的显示有很大区别，因此要解决一些更复杂的问题，以下这些技术手段本质上都是为了降低渲染的延迟。
 
 在了解如何降低延迟之前，必须先指导延迟的产生原因。在 Android 系统中，正常情况下渲染的流程如下：
+
 ![xr-vsync-delay-two-frame](/data/xr-vsync-delay-two-frame.svg)
 
 当 App 收到一个 VSYNC 信号的时候，它就开始第 N 帧的绘制，由于 App 默认使用双缓冲策略，因此绘制结束之后需要通过 `SwapBuffer` 提交绘制的结果到 `SurfaceFlinger`,当 SurfaceFlinger 收到 VSYNC 信号的时候，取出 App 绘制的第 N 帧进行合成，合成结束之后，通过 hwcomposer 进程讲结果 Commit 给内核，也就是CRTC，当 CRTC 收到 VSYNC 信号的时候开始显示第 N 帧画面到屏幕上。所以从第 N 帧的产生到显示至少会有 2 帧的延迟。
@@ -96,7 +101,7 @@ OpenGL 的 `GL_OVR_multiview` 和 `GL_OVR_multiview2` 扩展提供了对 MultiVi
 
 ## 总结
 
-目前市面上各个厂家的SDK质量参差不齐，在延迟方面做的最好的是 HelloLens，Oculus 做的也非常好，毕竟他们积累的时间比较长。相比这些产品，我们目前的 Vision SDK 还有很长的路要走。
+目前市面上各个厂家的SDK质量参差不齐，在延迟方面做的最好的是 HelloLens，Oculus 做的也非常好，毕竟他们积累的时间比较长。相比这些产品，我们目前的 SDK 还有很长的路要走。
 
 -----
 参考文档：
