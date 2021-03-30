@@ -57,6 +57,17 @@ const EGLint surface_attribs[] = {
   EGL_RENDER_BUFFER, EGL_SINGLE_BUFFER, 
   EGL_NONE};
 surface = eglCreateWindowSurface(display_, config_, window_, surface_attribs);
+// or
+bool result = eglSurfaceAttrib(display, surface_, EGL_RENDER_BUFFER, EGL_SINGLE_BUFFER);
+if(!result) {
+    LOGW("Set EGL_SINGLE_BUFFER error.");
+}
+
+// egl ext: EGL_ANDROID_front_buffer_auto_refresh
+result = eglSurfaceAttrib(display, surface_, EGL_FRONT_BUFFER_AUTO_REFRESH_ANDROID, 1);
+if(!result) {
+    LOGW("Set EGL_FRONT_BUFFER_AUTO_REFRESH_ANDROID error.");
+}
 ```
 
 ### Async Time Wrap（ATW）
