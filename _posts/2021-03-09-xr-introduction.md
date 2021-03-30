@@ -56,7 +56,7 @@ const EGLint surface_attribs[] = {
   // use single buffer
   EGL_RENDER_BUFFER, EGL_SINGLE_BUFFER, 
   EGL_NONE};
-surface = eglCreateWindowSurface(display_, config_, window_, surface_attribs);
+surface = eglCreateWindowSurface(display_, config_, window_, surface_attribs);·†
 // or
 bool result = eglSurfaceAttrib(display, surface_, EGL_RENDER_BUFFER, EGL_SINGLE_BUFFER);
 if(!result) {
@@ -69,6 +69,8 @@ if(!result) {
     LOGW("Set EGL_FRONT_BUFFER_AUTO_REFRESH_ANDROID error.");
 }
 ```
+
+在非前缓冲渲染中，当窗口画面有变动时，会通知合成器去合成画面，当开启了前缓冲渲染后，合成器会在每一个Vsync到来时都进行合成操作，不管窗口是否有变动。这可以加快上屏速度。
 
 ### Async Time Wrap（ATW）
 
