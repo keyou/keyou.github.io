@@ -1,5 +1,5 @@
 ---
-title: [draft] Chromium Video Decoder
+title: 【draft】Chromium Video Decoder
 categories:
   - chromium
   - video
