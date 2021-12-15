@@ -108,7 +108,8 @@ void glEndSharedImageAccessDirectCHROMIUM(GLuint texture);
 ```c++
 // cc/raster/gpu_raster_buffer_provider.cc
 
-static void RasterizeSourceOOPD(const RasterSource* raster_source,...) {
+// OOPD Raster
+static void RasterizeSource(const RasterSource* raster_source,...) {
   gpu::raster::RasterInterface* ri = context_provider->RasterInterface();
   auto* sii = context_provider->SharedImageInterface();
 
@@ -155,7 +156,8 @@ void glEndRasterCHROMIUM(void);
 ```c++
 // cc/raster/gpu_raster_buffer_provider.cc
 
-static void RasterizeSourceOOPR(const cc::RasterSource* raster_source,...) {
+// OOPR Raster
+static void RasterizeSourceOOP(const cc::RasterSource* raster_source,...) {
   gpu::raster::RasterInterface* ri = context_provider_->RasterInterface();
   auto* sii = context_provider->SharedImageInterface();
   
