@@ -50,8 +50,8 @@ Mojo 支持在**多个**进程之间互相通信，这一点和其他的IPC有�
 4. `MessagePipe`: 应用层接口，用于进程间的**双向**通信，类似UDP,消息是基于数据报的，底层使用Channel通道；
 5. `DataPipe`: 应用层接口，用于进程间**单向**块数据传递，类似TCP,消息是基于数据流的，底层使用系统的Shared Memory实现；
 6. `SharedBuffer`: 应用层接口，支持**双向**块数据传递，底层使用系统Shared Memory实现；
-7. `MojoHandle`： 所有的 MessagePipe,DataPipe,SharedBuffer 都使用MojoHandle来包装，有了这个Hanle就可以对它们进行读写操作。还可以通过MessagePipe将MojoHandle发送到网络中的任意进程。
-8. [`PlatformHanle`](https://source.chromium.org/chromium/chromium/src/+/master:mojo/public/cpp/platform/platform_handle.h;drc=b64eedb9d23e0350557a9bb22c9217ae52cd82c3;bpv=1;bpt=1;l=42): 用来包装系统的句柄或文件描述符，可以将它转换为MojoHandle然后发送到网络中的任意进程。
+7. `MojoHandle`： 所有的 MessagePipe,DataPipe,SharedBuffer 都使用MojoHandle来包装，有了这个Handle就可以对它们进行读写操作。还可以通过MessagePipe将MojoHandle发送到网络中的任意进程。
+8. [`PlatformHandle`](https://source.chromium.org/chromium/chromium/src/+/master:mojo/public/cpp/platform/platform_handle.h;drc=b64eedb9d23e0350557a9bb22c9217ae52cd82c3;bpv=1;bpt=1;l=42): 用来包装系统的句柄或文件描述符，可以将它转换为MojoHandle然后发送到网络中的任意进程。
 
 ### MessagePipe
 
@@ -212,7 +212,7 @@ mojo::MessagePipe pipe;
 
 ```c++
 // 创建一条系统级的IPC通信通道
-// 在linux上是 domain socket, Windows 是 named pipe，MacOS是Mach Port,该通道用于支持夸进程的消息通信
+// 在linux上是 domain socket, Windows 是 named pipe，MacOS是Mach Port,该通道用于支持跨进程的消息通信
 mojo::PlatformChannel channel;
 LOG(INFO) << "local: "
           << channel.local_endpoint().platform_handle().GetFD().get()
@@ -466,7 +466,7 @@ mojo::Binding<demo::mojom::Test> test(&test_impl,
   demo::mojom::TestRequest(std::move(pipe.handle1)));
 ```
 
-以上是在单进程中使用Mojo接口的方法，如果把handle1发送到其他进程，则可以实现夸进程调用远程接口了。
+以上是在单进程中使用Mojo接口的方法，如果把handle1发送到其他进程，则可以实现跨进程调用远程接口了。
 
 在实际使用中，经常把Binding对象放到接口的实现类中，像下面这样：
 
