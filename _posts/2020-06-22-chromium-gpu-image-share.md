@@ -4,12 +4,14 @@ published: true
 tags:
   - chromium
   - graphics
+  - rendering
   - opengl
 ---
 
 > Update:
 >
-> - 2020.8.5: 添加使用 OOP-D 和 OOP-R 接口的代码示例。
+> - 2020.8.5: 添加使用 GPU-R 和 OOP-R 接口的代码示例。
+> - 2022.7.26: 修正关于 OOP-D 的错误描述。
 
 资源共享指的是在一个 Context 中的创建的 Texture 资源可以被其他 Context 所使用。一般来讲只有相同 `share group` Context 创建的 Texture 才可以被共享，而 Chromium 设计了一套允许不同 `share group` 并且跨进程的 Texture 共享机制。
 
@@ -103,13 +105,14 @@ void glEndSharedImageAccessDirectCHROMIUM(GLuint texture);
 
 `glCreateAndTexStorage2DSharedImageCHROMIUM*` 方法根据传入的 `mailbox` 创建一个新的 Texture 对象。然后应用可以使用 `glBeginSharedImageAccessDirectCHROMIUM` 方法获取读/写 `texture` 对象的权限，然后使用常规的读写texture的GL命令访问texture的内容，比如`glGetTexImage`，`glReadPixels`，`glTexImage2D`等或者使用skia来间接访问texture的内容。操作结束之后，调用 `glEndSharedImageAccessDirectCHROMIUM` 方法释放权限。
 
-这些接口用于 `OOP-D(Out-Of-Process Display Compositor)` 机制下的 Raster。关于 OOP-D 见后续文档，下面的代码演示使用 OOP-D 接口创建 SharedImage：
+~~这些接口用于 `OOP-D(Out-Of-Process Display Compositor)` 机制下的 Raster。关于 OOP-D 见后续文档，下面的代码演示使用 OOP-D 接口创建 SharedImage：~~
+
+这些接口用于 `GPU-R` 机制下的 Raster，这种 Raster 机制已经被 `OOP-R` Raster 机制替代，并且在2022年2月份被移除，这里只用于演示旧版本 `GPU-R` 方式的 Raster：
 
 ```c++
 // cc/raster/gpu_raster_buffer_provider.cc
 
-// OOPD Raster
-static void RasterizeSource(const RasterSource* raster_source,...) {
+static void RasterizeSourceGPUR(const RasterSource* raster_source,...) {
   gpu::raster::RasterInterface* ri = context_provider->RasterInterface();
   auto* sii = context_provider->SharedImageInterface();
 
@@ -119,7 +122,7 @@ static void RasterizeSource(const RasterSource* raster_source,...) {
       kPremul_SkAlphaType, flags, gpu::kNullSurfaceHandle);
   ri->WaitSyncTokenCHROMIUM(sii->GenUnverifiedSyncToken().GetConstData());
 
-  // 使用 OOP-D 接口给 SharedImage 填充内容，内容来自 RasterSource
+  // 使用 GPU-R 接口给 SharedImage 填充内容，内容来自 RasterSource
   GLuint texture_id = ri->CreateAndConsumeForGpuRaster(mailbox);
   ri->BeginSharedImageAccessDirectCHROMIUM(
       texture_id, GL_SHARED_IMAGE_ACCESS_MODE_READWRITE_CHROMIUM);

@@ -10,6 +10,10 @@ tags:
   - viz
 ---
 
+> Update:
+>
+> - 2022.7.26: 修正关于 OOP-D 的错误描述，将 OOP-D 改为 GPU-R。
+
 在 Chromium 中 `viz` 的核心逻辑运行在 GPU 进程中，负责接收其他进程产生的 `viz::CompositorFrame（简称 CF）`，然后把这些 CF 进行合成，并将合成的结果最终渲染在窗口上。
 
 可以将这个过程拆解成以下几个步骤来分析：
@@ -89,8 +93,7 @@ viz::ResourceId CreateGpuResource(const gfx::Size& size,
   auto color_space = gfx::ColorSpace();
   // 直接使用像素数组创建 SharedImage。
   // 也可以先创建空的 SharedImage 然后再通过其他 API 来填充 SharedImage 的内容，
-  // 目前有两种填充 SharedImage 内容的方法，OOP-D 和 OOP-R，详见
-  // Chromium GPU Resource Share。
+  // 比如 GPU-R 和 OOP-R，详见 Chromium GPU Resource Share。
   gpu::Mailbox mailbox = sii->CreateSharedImage(
       format, size, color_space, gpu::SHARED_IMAGE_USAGE_DISPLAY, pixels);
 
@@ -112,7 +115,7 @@ viz::ResourceId CreateGpuResource(const gfx::Size& size,
 }
 ```
 
-上面的代码将 `SkBitmap` 中的像素数据使用 `gpu::SharedImageInterface` 接口放入 `SharedImage` 中，然后使用它返回的 Mailbox 创建 `viz::TransferableResource`。就像代码中注释的那样，不一定非要使用像素数据来创建 SharedImage，也可以使用 OOP-D 和 OOP-R 相关接口来创建 SharedImage。关于 Mailbox，SharedImage 以及 OOP-D 和 OOP-R 的相关内容可以参考[Chromium GPU Resource Share (Shared Image)]({% post_url 2020-06-22-chromium-gpu-image-share %})。
+上面的代码将 `SkBitmap` 中的像素数据使用 `gpu::SharedImageInterface` 接口放入 `SharedImage` 中，然后使用它返回的 Mailbox 创建 `viz::TransferableResource`。就像代码中注释的那样，不一定非要使用像素数据来创建 SharedImage，也可以使用 GPU-R 和 OOP-R 相关接口来创建 SharedImage。关于 Mailbox，SharedImage 以及 GPU-R 和 OOP-R 的相关内容可以参考[Chromium GPU Resource Share (Shared Image)]({% post_url 2020-06-22-chromium-gpu-image-share %})。
 
 哪些内容会以资源的形式存在呢？
 结果可能出乎你的意料，网页中的每一个 Tile 都引用一个资源。`cc` 会把网页分成很多的 Tiles，每一个都以 `viz::TileDrawQuad` 的形式存在，而每一个 `viz::TileDrawQuad` 只是简单引用一个资源（关于 DrawQuad 见下文）。此时，这些**资源就是 `cc` Raster 的产物**。
