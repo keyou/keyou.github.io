@@ -175,7 +175,7 @@ static void RasterizeSourceOOP(const cc::RasterSource* raster_source,...) {
       raster_source->background_color(), playback_settings.msaa_sample_count,
       playback_settings.use_lcd_text, color_space, mailbox.name);
   // 注意这里直接将 DisplayItemList 传到 Service 端进行 Raster，
-  // 这是 OOP-R 和 OOP-D 的本质区别。
+  // 这是 OOP-R 和 GPU-R 的本质区别。
   ri->RasterCHROMIUM(raster_source->GetDisplayItemList().get(),...);
   ri->EndRasterCHROMIUM();
   
