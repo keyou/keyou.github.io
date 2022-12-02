@@ -8,6 +8,10 @@ tags:
   - raster
 ---
 
+> Update:  
+> 2022.11.18: 添加 blink 的 paint 堆栈；
+
+
 官方的这篇 [How cc Works](https://chromium.googlesource.com/chromium/src/+/master/docs/how_cc_works.md) 文档写的很好，有顶层设计也有内部细节，可谓面面俱到了。只不过阅读门槛比较高，需要对 Chromium 的渲染有一定的了解才能较好的理解，因此才有此文。
 
 强烈建议先学习 `viz` 再来学习 `cc`，这样会事半功倍，viz 的文档可以参考 [How viz works]({% post_url 2020-07-29-how-viz-works %})。
@@ -30,6 +34,8 @@ cc 的设计相对简单，它不直接涉及跨进程操作（它依赖的 Shar
 ![cc](/data/2020-08-19-17-32-43.png)
 
 cc 的多线程体现在不同阶段运行在不同的线程中，`Paint` 运行在 Main 线程，`Commit`，`Activate`，`Submit` 运行在 Compositor 线程，而 `Raster` 运行在专门的 Raster 线程。
+
+不同的 cc client 有自己的 paint 方式，比如 views 和 blink 都是 cc 的 client，他们有各自不同的 paint 逻辑，但是其他比如 commit，raster 等都是一样的逻辑，因此如果要学习 cc 可以从 views 入手，不必一开始就深入到 blink 中。
 
 下面是基于这个 [demo](https://github.com/keyou/chromium_demo/blob/c/80.0.3987/demo_views/demo_views.cc) 的 cc 类图：
 
@@ -55,6 +61,7 @@ Paint 用于产生 cc 的数据源，生成 `cc::Layer` 树。一个 `cc::Layer`
 下面是执行 Paint 的堆栈，这里是调用 `//ui/views` 组件的堆栈，如果是 Blink 则 aura 和 views 命名空间下的堆栈会换成 blink。
 
 ```c++
+// 以下堆栈已经过时，主要的变动是 LayerTreeHostClient，这里仅用于解释原理。
 libviews.so!views::View::PaintChildren(views::internal::RootView * this, const views::PaintInfo & paint_info) (/media/keyou/dev2/chromium64/src/ui/views/view.cc:1649)
 libviews.so!views::View::Paint(views::internal::RootView * this, const views::PaintInfo & parent_paint_info) (/media/keyou/dev2/chromium64/src/ui/views/view.cc:1003)
 libviews.so!views::View::PaintFromPaintRoot(views::internal::RootView * this, const ui::PaintContext & parent_context) (/media/keyou/dev2/chromium64/src/ui/views/view.cc:2101)
@@ -65,11 +72,58 @@ libaura.so!aura::Window::OnPaintLayer(aura::Window * this, const ui::PaintContex
 libcompositor.so!ui::Layer::PaintContentsToDisplayList(ui::Layer * this, cc::ContentLayerClient::PaintingControlSetting painting_control) (/media/keyou/dev2/chromium64/src/ui/compositor/layer.cc:1258)
 libcompositor.so!non-virtual thunk to ui::Layer::PaintContentsToDisplayList(cc::ContentLayerClient::PaintingControlSetting) (Unknown Source:0)
 libcc.so!cc::PictureLayer::Update(cc::PictureLayer * this) (/media/keyou/dev2/chromium64/src/cc/layers/picture_layer.cc:140)
+// ￪ 通过 LayerTreeHostClient 通知外部组件进行绘制
 libcc.so!cc::LayerTreeHost::PaintContent(cc::LayerTreeHost * this, const cc::LayerList & update_layer_list) (/media/keyou/dev2/chromium64/src/cc/trees/layer_tree_host.cc:1402)
 libcc.so!cc::LayerTreeHost::DoUpdateLayers(cc::LayerTreeHost * this) (/media/keyou/dev2/chromium64/src/cc/trees/layer_tree_host.cc:834)
 libcc.so!cc::LayerTreeHost::UpdateLayers(cc::LayerTreeHost * this) (/media/keyou/dev2/chromium64/src/cc/trees/layer_tree_host.cc:703)
 libcc.so!cc::SingleThreadProxy::DoPainting(cc::SingleThreadProxy * this) (/media/keyou/dev2/chromium64/src/cc/trees/single_thread_proxy.cc:871)
 libcc.so!cc::SingleThreadProxy::BeginMainFrame(cc::SingleThreadProxy * this, const viz::BeginFrameArgs & begin_frame_args) (/media/keyou/dev2/chromium64/src/cc/trees/single_thread_proxy.cc:848)
+```
+
+blink 的如下：
+
+```c++
+// canvas 的绘制流程
+#0  blink::HTMLCanvasElement::PaintInternal (this=0xd86688c4908, context=..., r=...) at ../../third_party/blink/renderer/core/html/canvas/html_canvas_element.cc:853
+#1  0x00007fffddbd46d7 in blink::HTMLCanvasElement::Paint (this=0xd86688c4908, context=..., r=..., flatten_composited_layers=false) at ../../third_party/blink/renderer/core/html/canvas/html_canvas_element.cc:805
+#2  0x00007fffde9a6881 in blink::HTMLCanvasPainter::PaintReplaced (this=0x7fff9b8dcaf0, paint_info=..., paint_offset=...) at ../../third_party/blink/renderer/core/paint/html_canvas_painter.cc:71
+#3  0x00007fffde357262 in blink::LayoutHTMLCanvas::PaintReplaced (this=0x3be72c038290, paint_info=..., paint_offset=...) at ../../third_party/blink/renderer/core/layout/layout_html_canvas.cc:50
+#4  0x00007fffdea9e583 in blink::ReplacedPainter::Paint (this=0x7fff9b8dcdc8, paint_info=...) at ../../third_party/blink/renderer/core/paint/replaced_painter.cc:159
+#5  0x00007fffde3a476a in blink::LayoutReplaced::Paint (this=0x3be72c038290, paint_info=...) at ../../third_party/blink/renderer/core/layout/layout_replaced.cc:130
+#6  0x00007fffdea3275d in blink::PaintLayerPainter::PaintFragmentWithPhase (this=0x7fff9b8dd570, phase=blink::PaintPhase::kForeground, fragment=..., context=..., clip_rect=..., painting_info=..., paint_flags=16496) at ../../third_party/blink/renderer/core/paint/paint_layer_painter.cc:707
+#7  0x00007fffdea32d64 in blink::PaintLayerPainter::PaintForegroundForFragmentsWithPhase(blink::PaintPhase, WTF::Vector<blink::PaintLayerFragment, 1u, WTF::PartitionAllocator> const&, blink::GraphicsContext&, blink::PaintLayerPaintingInfo const&, unsigned int)::$_2::operator()(blink::PaintLayerFragment const&) const (this=0x7fff9b8dd078, fragment=...) at ../../third_party/blink/renderer/core/paint/paint_layer_painter.cc:766
+#8  0x00007fffdea32930 in blink::ForAllFragments<blink::PaintLayerPainter::PaintForegroundForFragmentsWithPhase(blink::PaintPhase, WTF::Vector<blink::PaintLayerFragment, 1u, WTF::PartitionAllocator> const&, blink::GraphicsContext&, blink::PaintLayerPaintingInfo const&, unsigned int)::$_2>(blink::GraphicsContext&, WTF::Vector<blink::PaintLayerFragment, 1u, WTF::PartitionAllocator> const&, blink::PaintLayerPainter::PaintForegroundForFragmentsWithPhase(blink::PaintPhase, WTF::Vector<blink::PaintLayerFragment, 1u, WTF::PartitionAllocator> const&, blink::GraphicsContext&, blink::PaintLayerPaintingInfo const&, unsigned int)::$_2 const&) (context=..., fragments=WTF::Vector of length 1, capacity 1 = {...}, function=...) at ../../third_party/blink/renderer/core/paint/paint_layer_painter.cc:593
+#9  0x00007fffdea31e68 in blink::PaintLayerPainter::PaintForegroundForFragmentsWithPhase (this=0x7fff9b8dd570, phase=blink::PaintPhase::kForeground, layer_fragments=WTF::Vector of length 1, capacity 1 = {...}, context=..., local_painting_info=..., paint_flags=16496) at ../../third_party/blink/renderer/core/paint/paint_layer_painter.cc:763
+#10 0x00007fffdea31f57 in blink::PaintLayerPainter::PaintForegroundForFragments (this=0x7fff9b8dd570, layer_fragments=WTF::Vector of length 1, capacity 1 = {...}, context=..., local_painting_info=..., paint_flags=16496) at ../../third_party/blink/renderer/core/paint/paint_layer_painter.cc:745
+#11 0x00007fffdea30c60 in blink::PaintLayerPainter::PaintLayerContents (this=0x7fff9b8dd570, context=..., painting_info_arg=..., paint_flags_arg=16496) at ../../third_party/blink/renderer/core/paint/paint_layer_painter.cc:506
+#12 0x00007fffdea2fd67 in blink::PaintLayerPainter::Paint (this=0x7fff9b8dd570, context=..., painting_info=..., paint_flags=16496) at ../../third_party/blink/renderer/core/paint/paint_layer_painter.cc:106
+#13 0x00007fffdea31c1d in blink::PaintLayerPainter::PaintChildren (this=0x7fff9b8dda40, children_to_visit=blink::kNormalFlowAndPositiveZOrderChildren, context=..., painting_info=..., paint_flags=16496) at ../../third_party/blink/renderer/core/paint/paint_layer_painter.cc:621
+#14 0x00007fffdea30cde in blink::PaintLayerPainter::PaintLayerContents (this=0x7fff9b8dda40, context=..., painting_info_arg=..., paint_flags_arg=16880) at ../../third_party/blink/renderer/core/paint/paint_layer_painter.cc:517
+#15 0x00007fffdea2fd67 in blink::PaintLayerPainter::Paint (this=0x7fff9b8dda40, context=..., painting_info=..., paint_flags=16880) at ../../third_party/blink/renderer/core/paint/paint_layer_painter.cc:106
+#16 0x00007fffdea31c1d in blink::PaintLayerPainter::PaintChildren (this=0x7fff9b8dde28, children_to_visit=blink::kNormalFlowAndPositiveZOrderChildren, context=..., painting_info=..., paint_flags=416) at ../../third_party/blink/renderer/core/paint/paint_layer_painter.cc:621
+#17 0x00007fffdea30cde in blink::PaintLayerPainter::PaintLayerContents (this=0x7fff9b8dde28, context=..., painting_info_arg=..., paint_flags_arg=416) at ../../third_party/blink/renderer/core/paint/paint_layer_painter.cc:517
+#18 0x00007fffde9714fc in blink::CompositedLayerMapping::DoPaintTask (this=0x3f87ef625990, paint_info=..., graphics_layer=..., paint_layer_flags=416, context=..., clip=...) at ../../third_party/blink/renderer/core/paint/compositing/composited_layer_mapping.cc:1619
+#19 0x00007fffde97291f in blink::CompositedLayerMapping::PaintContents (this=0x3f87ef625990, graphics_layer=0x3f87ef72c910, context=..., graphics_layer_painting_phase=26, interest_rect=...) at ../../third_party/blink/renderer/core/paint/compositing/composited_layer_mapping.cc:1922
+#20 0x00007fffd907ebb3 in blink::GraphicsLayer::Paint (this=0x3f87ef72c910, pre_composited_layers=WTF::Vector of length 1, capacity 4 = {...}, benchmark_mode=blink::PaintBenchmarkMode::kNormal, interest_rect=0x0) at ../../third_party/blink/renderer/platform/graphics/graphics_layer.cc:371
+#21 0x00007fffd90809c1 in blink::GraphicsLayer::PaintRecursively(blink::GraphicsContext&, WTF::Vector<blink::PreCompositedLayerInfo, 0u, WTF::PartitionAllocator>&, blink::PaintBenchmarkMode)::$_2::operator()(blink::GraphicsLayer&) const (this=0x7fff9b8de760, layer=...) at ../../third_party/blink/renderer/platform/graphics/graphics_layer.cc:294
+#22 0x00007fffd907e4f1 in blink::ForAllGraphicsLayers<blink::GraphicsLayer, blink::GraphicsLayer::PaintRecursively(blink::GraphicsContext&, WTF::Vector<blink::PreCompositedLayerInfo, 0u, WTF::PartitionAllocator>&, blink::PaintBenchmarkMode)::$_2, blink::GraphicsLayer::PaintRecursively(blink::GraphicsContext&, WTF::Vector<blink::PreCompositedLayerInfo, 0u, WTF::PartitionAllocator>&, blink::PaintBenchmarkMode)::$_3>(blink::GraphicsLayer&, blink::GraphicsLayer::PaintRecursively(blink::GraphicsContext&, WTF::Vector<blink::PreCompositedLayerInfo, 0u, WTF::PartitionAllocator>&, blink::PaintBenchmarkMode)::$_2 const&, blink::GraphicsLayer::PaintRecursively(blink::GraphicsContext&, WTF::Vector<blink::PreCompositedLayerInfo, 0u, WTF::PartitionAllocator>&, blink::PaintBenchmarkMode)::$_3 const&) (layer=..., graphics_layer_function=..., contents_layer_function=...) at ../../third_party/blink/renderer/platform/graphics/graphics_layer.h:344
+#23 0x00007fffd907e5be in blink::ForAllGraphicsLayers<blink::GraphicsLayer, blink::GraphicsLayer::PaintRecursively(blink::GraphicsContext&, WTF::Vector<blink::PreCompositedLayerInfo, 0u, WTF::PartitionAllocator>&, blink::PaintBenchmarkMode)::$_2, blink::GraphicsLayer::PaintRecursively(blink::GraphicsContext&, WTF::Vector<blink::PreCompositedLayerInfo, 0u, WTF::PartitionAllocator>&, blink::PaintBenchmarkMode)::$_3>(blink::GraphicsLayer&, blink::GraphicsLayer::PaintRecursively(blink::GraphicsContext&, WTF::Vector<blink::PreCompositedLayerInfo, 0u, WTF::PartitionAllocator>&, blink::PaintBenchmarkMode)::$_2 const&, blink::GraphicsLayer::PaintRecursively(blink::GraphicsContext&, WTF::Vector<blink::PreCompositedLayerInfo, 0u, WTF::PartitionAllocator>&, blink::PaintBenchmarkMode)::$_3 const&) (layer=..., graphics_layer_function=..., contents_layer_function=...) at ../../third_party/blink/renderer/platform/graphics/graphics_layer.h:351
+#24 0x00007fffd907e328 in blink::GraphicsLayer::PaintRecursively (this=0x3f87ef72ca90, context=..., pre_composited_layers=WTF::Vector of length 1, capacity 4 = {...}, benchmark_mode=blink::PaintBenchmarkMode::kNormal) at ../../third_party/blink/renderer/platform/graphics/graphics_layer.cc:287
+#25 0x00007fffdda32f32 in blink::LocalFrameView::PaintTree (this=0x361f26e9e768, benchmark_mode=blink::PaintBenchmarkMode::kNormal) at ../../third_party/blink/renderer/core/frame/local_frame_view.cc:3045
+#26 0x00007fffdda3112a in blink::LocalFrameView::RunPaintLifecyclePhase (this=0x361f26e9e768, benchmark_mode=blink::PaintBenchmarkMode::kNormal) at ../../third_party/blink/renderer/core/frame/local_frame_view.cc:2778
+#27 0x00007fffdda300dd in blink::LocalFrameView::UpdateLifecyclePhasesInternal (this=0x361f26e9e768, target_state=blink::DocumentLifecycle::kPaintClean) at ../../third_party/blink/renderer/core/frame/local_frame_view.cc:2578
+#28 0x00007fffdda2ebc2 in blink::LocalFrameView::UpdateLifecyclePhases (this=0x361f26e9e768, target_state=blink::DocumentLifecycle::kPaintClean, reason=blink::DocumentUpdateReason::kBeginMainFrame) at ../../third_party/blink/renderer/core/frame/local_frame_view.cc:2464
+#29 0x00007fffdda2e4b0 in blink::LocalFrameView::UpdateAllLifecyclePhases (this=0x361f26e9e768, reason=blink::DocumentUpdateReason::kBeginMainFrame) at ../../third_party/blink/renderer/core/frame/local_frame_view.cc:2207
+#30 0x00007fffde8e1ce7 in blink::PageAnimator::UpdateAllLifecyclePhases (this=0x301f74fc1ad8, root_frame=..., reason=blink::DocumentUpdateReason::kBeginMainFrame) at ../../third_party/blink/renderer/core/page/page_animator.cc:131
+#31 0x00007fffde8e7adc in blink::PageWidgetDelegate::UpdateLifecycle (page=..., root=..., requested_update=blink::WebLifecycleUpdate::kAll, reason=blink::DocumentUpdateReason::kBeginMainFrame) at ../../third_party/blink/renderer/core/page/page_widget_delegate.cc:72
+#32 0x00007fffdf82b31a in blink::WebViewImpl::UpdateLifecycle (this=0x3f87ef6f4010, requested_update=blink::WebLifecycleUpdate::kAll, reason=blink::DocumentUpdateReason::kBeginMainFrame) at ../../third_party/blink/renderer/core/exported/web_view_impl.cc:1342
+#33 0x00007fffddb824e0 in blink::WebViewFrameWidget::UpdateLifecycle (this=0x361f26e88578, requested_update=blink::WebLifecycleUpdate::kAll, reason=blink::DocumentUpdateReason::kBeginMainFrame) at ../../third_party/blink/renderer/core/frame/web_view_frame_widget.cc:97
+#34 0x00007fffd9360776 in blink::WidgetBase::UpdateVisualState (this=0x3bb6cec174a0) at ../../third_party/blink/renderer/platform/widget/widget_base.cc:761
+#35 0x00007fffd92e7375 in blink::LayerTreeView::UpdateLayerTreeHost (this=0x3bb6cf1e02e0) at ../../third_party/blink/renderer/platform/widget/compositing/layer_tree_view.cc:198
+// ￪ 通过 LayerTreeHostClient 通知外部组件进行绘制
+#36  0x00007fffe77df186 in cc::LayerTreeHost::RequestMainFrameUpdate (this=0x16aa67069220, report_cc_metrics=true) at ../../cc/trees/layer_tree_host.cc:305                                                                                    
+#37  0x00007fffe78d65a5 in cc::ProxyMain::BeginMainFrame (this=0x16aa66d16e30, begin_main_frame_state=std::unique_ptr<cc::BeginMainFrameAndCommitState> containing = {...}) at ../../cc/trees/proxy_main.cc:258
+
 ```
 
 ### Commit
